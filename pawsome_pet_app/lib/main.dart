@@ -7,20 +7,42 @@ void main() {
 // Helper function to format date without intl package
 String formatDate(DateTime date) {
   final months = [
-    'Jan',
-    'Feb',
-    'Mar',
-    'Apr',
-    'May',
-    'Jun',
-    'Jul',
-    'Aug',
-    'Sep',
-    'Oct',
-    'Nov',
-    'Dec'
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
   ];
   return '${months[date.month - 1]} ${date.day}, ${date.year}';
+}
+
+// Global list to store registered users
+class UserDatabase {
+  static final List<Map<String, String>> _users = [];
+
+  static void addUser(String email, String password, String name, String phone) {
+    _users.add({
+      'email': email,
+      'password': password,
+      'name': name,
+      'phone': phone,
+    });
+  }
+
+  static bool userExists(String email) {
+    return _users.any((user) => user['email'] == email);
+  }
+
+  static bool validateUser(String email, String password) {
+    return _users.any(
+      (user) => user['email'] == email && user['password'] == password,
+    );
+  }
+
+  static Map<String, String>? getUser(String email) {
+    try {
+      return _users.firstWhere((user) => user['email'] == email);
+    } catch (e) {
+      return null;
+    }
+  }
 }
 
 class PetDaycareApp extends StatelessWidget {
@@ -34,8 +56,119 @@ class PetDaycareApp extends StatelessWidget {
         primarySwatch: Colors.purple,
         visualDensity: VisualDensity.adaptivePlatformDensity,
       ),
-      home: const LoginPage(),
+      home: const WelcomePage(),
       debugShowCheckedModeBanner: false,
+    );
+  }
+}
+
+// Welcome Page - Choose Login or Register
+class WelcomePage extends StatelessWidget {
+  const WelcomePage({Key? key}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Colors.purple.shade400, Colors.purple.shade800],
+          ),
+        ),
+        child: SafeArea(
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24.0),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(
+                    Icons.pets,
+                    size: 120,
+                    color: Colors.white,
+                  ),
+                  const SizedBox(height: 24),
+                  const Text(
+                    'Welcome to Pawsome',
+                    style: TextStyle(
+                      fontSize: 32,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Pet Daycare & Grooming Services',
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: Colors.white70,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 60),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 55,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (context) => const LoginPage()),
+                        );
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.white,
+                        foregroundColor: Colors.purple,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: const Text(
+                        'LOGIN',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 55,
+                    child: OutlinedButton(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (context) => const RegistrationPage()),
+                        );
+                      },
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.white,
+                        side: const BorderSide(color: Colors.white, width: 2),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: const Text(
+                        'REGISTER',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -63,12 +196,41 @@ class _LoginPageState extends State<LoginPage> {
 
   void _submitLogin() {
     if (_formKey.currentState!.validate()) {
+      final email = _emailController.text.trim();
+      final password = _passwordController.text;
+
+      // Check if user exists in database
+      if (!UserDatabase.userExists(email)) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Account not found. Please register first.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+
+      // Validate credentials
+      if (!UserDatabase.validateUser(email, password)) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Incorrect password. Please try again.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+
+      // Login successful
+      final user = UserDatabase.getUser(email);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Welcome to Pawsome! 🐾')),
+        SnackBar(content: Text('Welcome back, ${user!['name']}! 🐾')),
       );
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (context) => const RegistrationPage()),
+        MaterialPageRoute(
+          builder: (context) => BookingFormPage(userName: user['name']!),
+        ),
       );
     }
   }
@@ -77,7 +239,7 @@ class _LoginPageState extends State<LoginPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Pawsome - Login'),
+        title: const Text('Login'),
         centerTitle: true,
       ),
       body: Center(
@@ -91,12 +253,8 @@ class _LoginPageState extends State<LoginPage> {
                 const Icon(Icons.pets, size: 80, color: Colors.purple),
                 const SizedBox(height: 24),
                 const Text(
-                  'Welcome to Pawsome',
+                  'Welcome Back',
                   style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
-                ),
-                const Text(
-                  'Pet Daycare & Grooming',
-                  style: TextStyle(fontSize: 16, color: Colors.grey),
                 ),
                 const SizedBox(height: 32),
                 TextFormField(
@@ -158,13 +316,13 @@ class _LoginPageState extends State<LoginPage> {
                 const SizedBox(height: 16),
                 TextButton(
                   onPressed: () {
-                    Navigator.push(
+                    Navigator.pushReplacement(
                       context,
                       MaterialPageRoute(
                           builder: (context) => const RegistrationPage()),
                     );
                   },
-                  child: const Text('New pet parent? Register here'),
+                  child: const Text('Don\'t have an account? Register here'),
                 ),
               ],
             ),
@@ -203,12 +361,34 @@ class _RegistrationPageState extends State<RegistrationPage> {
 
   void _submitRegistration() {
     if (_formKey.currentState!.validate()) {
+      final email = _emailController.text.trim();
+      final password = _passwordController.text;
+      final name = _nameController.text.trim();
+      final phone = _phoneController.text.trim();
+
+      // Check if user already exists
+      if (UserDatabase.userExists(email)) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Email already registered. Please login instead.'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        return;
+      }
+
+      // Register new user
+      UserDatabase.addUser(email, password, name, phone);
+
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Account Created Successfully! 🎉')),
+        const SnackBar(
+          content: Text('Account Created Successfully! Please login. 🎉'),
+          backgroundColor: Colors.green,
+        ),
       );
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (context) => const BookingFormPage()),
+        MaterialPageRoute(builder: (context) => const LoginPage()),
       );
     }
   }
@@ -217,7 +397,7 @@ class _RegistrationPageState extends State<RegistrationPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Create Account'),
+        title: const Text('Register Account'),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24.0),
@@ -227,7 +407,7 @@ class _RegistrationPageState extends State<RegistrationPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
-                'Join Our Pet Family',
+                'Create Your Account',
                 style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 24),
@@ -325,9 +505,21 @@ class _RegistrationPageState extends State<RegistrationPage> {
                 child: ElevatedButton(
                   onPressed: _submitRegistration,
                   child: const Text(
-                    'CREATE ACCOUNT',
+                    'REGISTER',
                     style: TextStyle(fontSize: 16),
                   ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Center(
+                child: TextButton(
+                  onPressed: () {
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(builder: (context) => const LoginPage()),
+                    );
+                  },
+                  child: const Text('Already have an account? Login here'),
                 ),
               ),
             ],
@@ -340,7 +532,9 @@ class _RegistrationPageState extends State<RegistrationPage> {
 
 // 5, 7, 8, 9, 10: Complete Booking Form with all input types
 class BookingFormPage extends StatefulWidget {
-  const BookingFormPage({Key? key}) : super(key: key);
+  final String userName;
+  
+  const BookingFormPage({Key? key, required this.userName}) : super(key: key);
 
   @override
   State<BookingFormPage> createState() => _BookingFormPageState();
@@ -351,6 +545,7 @@ class _BookingFormPageState extends State<BookingFormPage> {
   final _petNameController = TextEditingController();
   final _specialNotesController = TextEditingController();
   final _emergencyContactController = TextEditingController();
+  final _otherPetTypeController = TextEditingController();
 
   // Form fields
   String _selectedService = 'Daycare Only';
@@ -361,8 +556,8 @@ class _BookingFormPageState extends State<BookingFormPage> {
   bool _needsMedication = false;
   DateTime? _dropOffDate;
   TimeOfDay? _dropOffTime;
-  DateTime? _pickUpDate;
-  TimeOfDay? _pickUpTime;
+  DateTime? _returnDate;
+  TimeOfDay? _returnTime;
 
   // Local list to store bookings
   final List<Map<String, dynamic>> _bookings = [];
@@ -382,6 +577,7 @@ class _BookingFormPageState extends State<BookingFormPage> {
     _petNameController.dispose();
     _specialNotesController.dispose();
     _emergencyContactController.dispose();
+    _otherPetTypeController.dispose();
     super.dispose();
   }
 
@@ -397,23 +593,70 @@ class _BookingFormPageState extends State<BookingFormPage> {
         if (isDropOff) {
           _dropOffDate = picked;
         } else {
-          _pickUpDate = picked;
+          _returnDate = picked;
         }
       });
     }
   }
 
   Future<void> _selectTime(BuildContext context, bool isDropOff) async {
+    // Get current time
+    final now = TimeOfDay.now();
+    final selectedDate = isDropOff ? _dropOffDate : _returnDate;
+    
+    // Check if selected date is today
+    final isToday = selectedDate != null &&
+        selectedDate.year == DateTime.now().year &&
+        selectedDate.month == DateTime.now().month &&
+        selectedDate.day == DateTime.now().day;
+
     final TimeOfDay? picked = await showTimePicker(
       context: context,
-      initialTime: TimeOfDay.now(),
+      initialTime: const TimeOfDay(hour: 10, minute: 0),
+      builder: (BuildContext context, Widget? child) {
+        return MediaQuery(
+          data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: false),
+          child: child!,
+        );
+      },
     );
+
     if (picked != null) {
+      // Validate time is between 10 AM and 8 PM
+      if (picked.hour < 10 || picked.hour >= 20) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please select a time between 10:00 AM and 8:00 PM'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+
+      // If it's today, check if the selected time hasn't passed
+      if (isToday) {
+        final pickedMinutes = picked.hour * 60 + picked.minute;
+        final nowMinutes = now.hour * 60 + now.minute;
+        
+        if (pickedMinutes <= nowMinutes) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Cannot select past time. Current time is ${now.format(context)}. Please select a future time.',
+              ),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 4),
+            ),
+          );
+          return;
+        }
+      }
+
       setState(() {
         if (isDropOff) {
           _dropOffTime = picked;
         } else {
-          _pickUpTime = picked;
+          _returnTime = picked;
         }
       });
     }
@@ -428,23 +671,39 @@ class _BookingFormPageState extends State<BookingFormPage> {
         return;
       }
 
+      // Validate "Other" pet type has custom input
+      if (_petType == 'Other' && _otherPetTypeController.text.trim().isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please specify your pet type'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+
+      final actualPetType = _petType == 'Other' 
+          ? _otherPetTypeController.text.trim() 
+          : _petType;
+
       final booking = {
         'petName': _petNameController.text,
         'service': _selectedService,
-        'petType': _petType,
+        'petType': actualPetType,
         'petSize': _petSize,
         'needsFeeding': _needsFeeding,
         'hasVaccination': _hasVaccination,
         'needsMedication': _needsMedication,
         'dropOffDate': formatDate(_dropOffDate!),
         'dropOffTime': _dropOffTime!.format(context),
-        'pickUpDate':
-            _pickUpDate != null ? formatDate(_pickUpDate!) : 'Same Day',
+        'pickUpDate': _returnDate != null
+            ? formatDate(_returnDate!)
+            : 'Same Day',
         'pickUpTime':
-            _pickUpTime != null ? _pickUpTime!.format(context) : 'TBD',
+            _returnTime != null ? _returnTime!.format(context) : 'TBD',
         'emergencyContact': _emergencyContactController.text,
         'specialNotes': _specialNotesController.text,
-        'status': 'Pending',
+        'paymentStatus': 'Unpaid',
         'totalCost': _calculateCost(),
       };
 
@@ -493,10 +752,11 @@ class _BookingFormPageState extends State<BookingFormPage> {
     _petNameController.clear();
     _specialNotesController.clear();
     _emergencyContactController.clear();
+    _otherPetTypeController.clear();
     _dropOffDate = null;
     _dropOffTime = null;
-    _pickUpDate = null;
-    _pickUpTime = null;
+    _returnDate = null;
+    _returnTime = null;
     _selectedService = 'Daycare Only';
     _petType = 'Dog';
     _petSize = 'Small';
@@ -517,11 +777,38 @@ class _BookingFormPageState extends State<BookingFormPage> {
     }
   }
 
+  void _logout() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Logout'),
+        content: const Text('Are you sure you want to logout?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (context) => const WelcomePage()),
+              );
+            },
+            child: const Text('Logout'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Book Pet Care'),
+        title: Text('Book Pet Care - Hello, ${widget.userName}!'),
+        automaticallyImplyLeading: false,
         actions: [
           IconButton(
             icon: const Icon(Icons.folder_outlined),
@@ -529,12 +816,16 @@ class _BookingFormPageState extends State<BookingFormPage> {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) =>
-                      DocumentTrackerPage(bookings: _bookings),
+                  builder: (context) => DocumentTrackerPage(bookings: _bookings),
                 ),
               );
             },
             tooltip: 'View All Bookings',
+          ),
+          IconButton(
+            icon: const Icon(Icons.logout),
+            onPressed: _logout,
+            tooltip: 'Logout',
           ),
         ],
       ),
@@ -585,10 +876,34 @@ class _BookingFormPageState extends State<BookingFormPage> {
                   onChanged: (String? newValue) {
                     setState(() {
                       _petType = newValue!;
+                      if (_petType != 'Other') {
+                        _otherPetTypeController.clear();
+                      }
                     });
                   },
                 ),
               ),
+
+              // Text field for "Other" pet type
+              if (_petType == 'Other')
+                Container(
+                  margin: const EdgeInsets.only(bottom: 16),
+                  child: TextFormField(
+                    controller: _otherPetTypeController,
+                    decoration: const InputDecoration(
+                      labelText: 'Specify Pet Type',
+                      prefixIcon: Icon(Icons.pets),
+                      border: OutlineInputBorder(),
+                      hintText: 'e.g., Hamster, Guinea Pig, Ferret',
+                    ),
+                    validator: (value) {
+                      if (_petType == 'Other' && (value == null || value.isEmpty)) {
+                        return 'Please specify your pet type';
+                      }
+                      return null;
+                    },
+                  ),
+                ),
 
               // 7: Dropdown for Pet Size
               Container(
@@ -628,8 +943,7 @@ class _BookingFormPageState extends State<BookingFormPage> {
                     border: OutlineInputBorder(),
                   ),
                   items: _services.map((String service) {
-                    return DropdownMenuItem(
-                        value: service, child: Text(service));
+                    return DropdownMenuItem(value: service, child: Text(service));
                   }).toList(),
                   onChanged: (String? newValue) {
                     setState(() {
@@ -638,10 +952,9 @@ class _BookingFormPageState extends State<BookingFormPage> {
                   },
                 ),
               ),
-              const SizedBox(height: 20),
 
               const Text(
-                'Schedule',
+                'Schedule (10:00 AM - 8:00 PM)',
                 style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 16),
@@ -677,7 +990,7 @@ class _BookingFormPageState extends State<BookingFormPage> {
               ),
               const SizedBox(height: 16),
 
-              // 8: Pick Up Date and Time
+              // 8: Return Date and Time
               const Text(
                 'Pick-Up (Optional)',
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
@@ -688,9 +1001,9 @@ class _BookingFormPageState extends State<BookingFormPage> {
                   Expanded(
                     child: OutlinedButton.icon(
                       icon: const Icon(Icons.calendar_today),
-                      label: Text(_pickUpDate == null
+                      label: Text(_returnDate == null
                           ? 'Select Date'
-                          : formatDate(_pickUpDate!)),
+                          : formatDate(_returnDate!)),
                       onPressed: () => _selectDate(context, false),
                     ),
                   ),
@@ -698,9 +1011,9 @@ class _BookingFormPageState extends State<BookingFormPage> {
                   Expanded(
                     child: OutlinedButton.icon(
                       icon: const Icon(Icons.access_time),
-                      label: Text(_pickUpTime == null
+                      label: Text(_returnTime == null
                           ? 'Select Time'
-                          : _pickUpTime!.format(context)),
+                          : _returnTime!.format(context)),
                       onPressed: () => _selectTime(context, false),
                     ),
                   ),
@@ -730,8 +1043,7 @@ class _BookingFormPageState extends State<BookingFormPage> {
               // 5: Checkbox - Medication
               CheckboxListTile(
                 title: const Text('Needs Medication'),
-                subtitle:
-                    const Text('We\'ll administer prescribed meds (+₱200)'),
+                subtitle: const Text('We\'ll administer prescribed meds (+₱200)'),
                 value: _needsMedication,
                 onChanged: (bool? value) {
                   setState(() {
@@ -892,15 +1204,32 @@ class _BookingFormPageState extends State<BookingFormPage> {
                                     ),
                                   ],
                                 ),
-                                Chip(
-                                  label: Text(booking['status']),
-                                  backgroundColor: Colors.orange.shade100,
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 6,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: booking['paymentStatus'] == 'Paid'
+                                        ? Colors.green
+                                        : Colors.orange,
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                  child: Text(
+                                    booking['paymentStatus'],
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 12,
+                                    ),
+                                  ),
                                 ),
                               ],
                             ),
                             const Divider(),
                             _buildInfoRow('Service:', booking['service']),
-                            _buildInfoRow('Pet Type:',
+                            _buildInfoRow(
+                                'Pet Type:',
                                 '${booking['petType']} (${booking['petSize']})'),
                             _buildInfoRow('Drop-Off:',
                                 '${booking['dropOffDate']} at ${booking['dropOffTime']}'),
@@ -908,18 +1237,19 @@ class _BookingFormPageState extends State<BookingFormPage> {
                                 '${booking['pickUpDate']} at ${booking['pickUpTime']}'),
                             _buildInfoRow('Cost:', booking['totalCost']),
                             const SizedBox(height: 8),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.end,
-                              children: [
-                                TextButton.icon(
-                                  icon: const Icon(Icons.payment),
-                                  label: const Text('Pay Now'),
-                                  onPressed: () {
-                                    _showPaymentDialog(context, booking);
-                                  },
-                                ),
-                              ],
-                            ),
+                            if (booking['paymentStatus'] == 'Unpaid')
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.end,
+                                children: [
+                                  ElevatedButton.icon(
+                                    icon: const Icon(Icons.payment, size: 18),
+                                    label: const Text('Pay Now'),
+                                    onPressed: () {
+                                      _showPaymentDialog(context, booking, index);
+                                    },
+                                  ),
+                                ],
+                              ),
                           ],
                         ),
                       ),
@@ -955,194 +1285,133 @@ class _BookingFormPageState extends State<BookingFormPage> {
     );
   }
 
-  void _showPaymentDialog(BuildContext context, Map<String, dynamic> booking) {
+  void _showPaymentDialog(BuildContext context, Map<String, dynamic> booking, int index) {
+    String? selectedPaymentMethod;
+    
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Payment'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Pet: ${booking['petName']}'),
-            Text('Service: ${booking['service']}'),
-            const SizedBox(height: 16),
-            Text(
-              'Total: ${booking['totalCost']}',
-              style: const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: Colors.purple,
+      builder: (BuildContext dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          return AlertDialog(
+            title: const Text('Select Payment Method'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Booking Details',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  ),
+                  const Divider(),
+                  _buildPaymentInfoRow('Pet Name:', booking['petName']),
+                  _buildPaymentInfoRow('Service:', booking['service']),
+                  _buildPaymentInfoRow(
+                      'Pet Info:', '${booking['petType']} (${booking['petSize']})'),
+                  _buildPaymentInfoRow('Drop-Off:', booking['dropOffDate']),
+                  _buildPaymentInfoRow('Time:', booking['dropOffTime']),
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.purple.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'Total Amount:',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        Text(
+                          booking['totalCost'],
+                          style: const TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.purple,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  const Text(
+                    'Choose Payment Method:',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  ),
+                  const SizedBox(height: 12),
+                  RadioListTile<String>(
+                    title: const Text('GCash'),
+                    subtitle: const Text('Mobile wallet payment'),
+                    secondary: const Icon(Icons.phone_android, color: Colors.blue),
+                    value: 'GCash',
+                    groupValue: selectedPaymentMethod,
+                    onChanged: (value) {
+                      setDialogState(() {
+                        selectedPaymentMethod = value;
+                      });
+                    },
+                  ),
+                  RadioListTile<String>(
+                    title: const Text('PayMaya'),
+                    subtitle: const Text('Digital payment'),
+                    secondary: const Icon(Icons.account_balance_wallet, color: Colors.green),
+                    value: 'PayMaya',
+                    groupValue: selectedPaymentMethod,
+                    onChanged: (value) {
+                      setDialogState(() {
+                        selectedPaymentMethod = value;
+                      });
+                    },
+                  ),
+                  RadioListTile<String>(
+                    title: const Text('Credit/Debit Card'),
+                    subtitle: const Text('Visa, Mastercard, etc.'),
+                    secondary: const Icon(Icons.credit_card, color: Colors.orange),
+                    value: 'Credit Card',
+                    groupValue: selectedPaymentMethod,
+                    onChanged: (value) {
+                      setDialogState(() {
+                        selectedPaymentMethod = value;
+                      });
+                    },
+                  ),
+                  RadioListTile<String>(
+                    title: const Text('Cash on Arrival'),
+                    subtitle: const Text('Pay when you arrive'),
+                    secondary: const Icon(Icons.money, color: Colors.green),
+                    value: 'Cash',
+                    groupValue: selectedPaymentMethod,
+                    onChanged: (value) {
+                      setDialogState(() {
+                        selectedPaymentMethod = value;
+                      });
+                    },
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 16),
-            const Text('Payment methods:'),
-            const Text('• GCash'),
-            const Text('• PayMaya'),
-            const Text('• Credit/Debit Card'),
-            const Text('• Cash on arrival'),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Payment processed successfully! 💳'),
-                ),
-              );
-            },
-            child: const Text('Proceed to Pay'),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// Document Tracker Page with Payment Processing
-class DocumentTrackerPage extends StatefulWidget {
-  final List<Map<String, dynamic>> bookings;
-
-  const DocumentTrackerPage({Key? key, required this.bookings})
-      : super(key: key);
-
-  @override
-  State<DocumentTrackerPage> createState() => _DocumentTrackerPageState();
-}
-
-class _DocumentTrackerPageState extends State<DocumentTrackerPage> {
-  String _filterStatus = 'All';
-  final List<String> _statusFilters = [
-    'All',
-    'Pending',
-    'Confirmed',
-    'Completed',
-    'Cancelled'
-  ];
-
-  List<Map<String, dynamic>> get filteredBookings {
-    if (_filterStatus == 'All') return widget.bookings;
-    return widget.bookings
-        .where((booking) => booking['status'] == _filterStatus)
-        .toList();
-  }
-
-  void _updateBookingStatus(int index, String newStatus) {
-    setState(() {
-      widget.bookings[index]['status'] = newStatus;
-    });
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Status updated to $newStatus')),
-    );
-  }
-
-  void _processPayment(BuildContext context, Map<String, dynamic> booking) {
-    showDialog(
-      context: context,
-      builder: (BuildContext dialogContext) => AlertDialog(
-        title: const Text('Process Payment'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Booking Details',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext),
+                child: const Text('Cancel'),
               ),
-              const Divider(),
-              _buildPaymentInfoRow('Pet Name:', booking['petName']),
-              _buildPaymentInfoRow('Service:', booking['service']),
-              _buildPaymentInfoRow(
-                  'Pet Info:', '${booking['petType']} (${booking['petSize']})'),
-              _buildPaymentInfoRow('Drop-Off:', booking['dropOffDate']),
-              _buildPaymentInfoRow('Time:', booking['dropOffTime']),
-              const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.purple.shade50,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text(
-                      'Total Amount:',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    Text(
-                      booking['totalCost'],
-                      style: const TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.purple,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'Select Payment Method:',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 8),
-              ListTile(
-                leading: const Icon(Icons.account_balance_wallet,
-                    color: Colors.blue),
-                title: const Text('GCash'),
-                dense: true,
-                onTap: () {
-                  Navigator.pop(dialogContext);
-                  _confirmPayment('GCash');
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.payment, color: Colors.green),
-                title: const Text('PayMaya'),
-                dense: true,
-                onTap: () {
-                  Navigator.pop(dialogContext);
-                  _confirmPayment('PayMaya');
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.credit_card, color: Colors.orange),
-                title: const Text('Credit/Debit Card'),
-                dense: true,
-                onTap: () {
-                  Navigator.pop(dialogContext);
-                  _confirmPayment('Credit Card');
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.money, color: Colors.green),
-                title: const Text('Cash on Arrival'),
-                dense: true,
-                onTap: () {
-                  Navigator.pop(dialogContext);
-                  _confirmPayment('Cash');
-                },
+              ElevatedButton(
+                onPressed: selectedPaymentMethod == null
+                    ? null
+                    : () {
+                        Navigator.pop(dialogContext);
+                        _confirmPayment(selectedPaymentMethod!, booking, index);
+                      },
+                child: const Text('Continue'),
               ),
             ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Cancel'),
-          ),
-        ],
+          );
+        },
       ),
     );
   }
@@ -1171,20 +1440,100 @@ class _DocumentTrackerPageState extends State<DocumentTrackerPage> {
     );
   }
 
-  void _confirmPayment(String method) {
+  void _confirmPayment(String method, Map<String, dynamic> booking, int index) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Icon(Icons.check_circle, color: Colors.green, size: 60),
+        title: const Text('Confirm Payment'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Please confirm your payment details:',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 16),
+            _buildPaymentInfoRow('Payment Method:', method),
+            _buildPaymentInfoRow('Amount:', booking['totalCost']),
+            _buildPaymentInfoRow('Pet:', booking['petName']),
+            _buildPaymentInfoRow('Service:', booking['service']),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.orange.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.orange.shade200),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.info_outline, color: Colors.orange.shade700),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      method == 'Cash'
+                          ? 'Please bring exact amount on arrival'
+                          : 'You will be redirected to payment gateway',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.orange.shade700,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _processPayment(method, booking, index);
+            },
+            child: const Text('Confirm & Pay'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _processPayment(String method, Map<String, dynamic> booking, int index) {
+    // Update payment status
+    setState(() {
+      _bookings[index]['paymentStatus'] = 'Paid';
+      _bookings[index]['paymentMethod'] = method;
+    });
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            const Icon(Icons.check_circle, color: Colors.green, size: 80),
+            const SizedBox(height: 16),
             const Text(
               'Payment Successful!',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
-            Text('Payment method: $method'),
+            Text('Payment Method: $method'),
+            const SizedBox(height: 8),
+            Text(
+              'Amount: ${booking['totalCost']}',
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.purple,
+              ),
+            ),
             const SizedBox(height: 16),
             const Text(
               'You will receive a confirmation email shortly.',
@@ -1204,34 +1553,34 @@ class _DocumentTrackerPageState extends State<DocumentTrackerPage> {
                 ),
               );
             },
+            style: ElevatedButton.styleFrom(
+              minimumSize: const Size(double.infinity, 45),
+            ),
             child: const Text('Done'),
           ),
         ],
       ),
     );
   }
+}
 
+// Document Tracker Page with Payment Processing
+class DocumentTrackerPage extends StatefulWidget {
+  final List<Map<String, dynamic>> bookings;
+
+  const DocumentTrackerPage({Key? key, required this.bookings})
+      : super(key: key);
+
+  @override
+  State<DocumentTrackerPage> createState() => _DocumentTrackerPageState();
+}
+
+class _DocumentTrackerPageState extends State<DocumentTrackerPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Booking Tracker'),
-        actions: [
-          PopupMenuButton<String>(
-            icon: const Icon(Icons.filter_list),
-            onSelected: (value) {
-              setState(() {
-                _filterStatus = value;
-              });
-            },
-            itemBuilder: (context) => _statusFilters
-                .map((status) => PopupMenuItem(
-                      value: status,
-                      child: Text(status),
-                    ))
-                .toList(),
-          ),
-        ],
+        title: const Text('My Bookings'),
       ),
       body: widget.bookings.isEmpty
           ? Center(
@@ -1254,9 +1603,9 @@ class _DocumentTrackerPageState extends State<DocumentTrackerPage> {
             )
           : ListView.builder(
               padding: const EdgeInsets.all(16),
-              itemCount: filteredBookings.length,
+              itemCount: widget.bookings.length,
               itemBuilder: (context, index) {
-                final booking = filteredBookings[index];
+                final booking = widget.bookings[index];
                 return Card(
                   margin: const EdgeInsets.only(bottom: 16),
                   elevation: 4,
@@ -1310,11 +1659,13 @@ class _DocumentTrackerPageState extends State<DocumentTrackerPage> {
                                 vertical: 6,
                               ),
                               decoration: BoxDecoration(
-                                color: _getStatusColor(booking['status']),
+                                color: booking['paymentStatus'] == 'Paid'
+                                    ? Colors.green
+                                    : Colors.orange,
                                 borderRadius: BorderRadius.circular(20),
                               ),
                               child: Text(
-                                booking['status'],
+                                booking['paymentStatus'],
                                 style: const TextStyle(
                                   color: Colors.white,
                                   fontWeight: FontWeight.bold,
@@ -1337,6 +1688,9 @@ class _DocumentTrackerPageState extends State<DocumentTrackerPage> {
                         if (booking['specialNotes'].isNotEmpty)
                           _buildDetailRow(
                               Icons.note, 'Notes', booking['specialNotes']),
+                        if (booking['paymentStatus'] == 'Paid')
+                          _buildDetailRow(Icons.payment, 'Paid via',
+                              booking['paymentMethod'] ?? 'N/A'),
                         const Divider(height: 24),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1349,37 +1703,21 @@ class _DocumentTrackerPageState extends State<DocumentTrackerPage> {
                                 color: Colors.purple,
                               ),
                             ),
-                            Row(
-                              children: [
-                                OutlinedButton.icon(
-                                  icon: const Icon(Icons.edit, size: 18),
-                                  label: const Text('Status'),
-                                  onPressed: () {
-                                    _showStatusDialog(
-                                        widget.bookings.indexOf(booking));
-                                  },
-                                  style: OutlinedButton.styleFrom(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 12,
-                                      vertical: 8,
-                                    ),
+                            if (booking['paymentStatus'] == 'Unpaid')
+                              ElevatedButton.icon(
+                                icon: const Icon(Icons.payment, size: 18),
+                                label: const Text('Pay Now'),
+                                onPressed: () {
+                                  Navigator.pop(context);
+                                  // This will trigger the payment in the main page
+                                },
+                                style: ElevatedButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 10,
                                   ),
                                 ),
-                                const SizedBox(width: 8),
-                                ElevatedButton.icon(
-                                  icon: const Icon(Icons.payment, size: 18),
-                                  label: const Text('Pay'),
-                                  onPressed: () =>
-                                      _processPayment(context, booking),
-                                  style: ElevatedButton.styleFrom(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 12,
-                                      vertical: 8,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
+                              ),
                           ],
                         ),
                       ],
@@ -1388,13 +1726,6 @@ class _DocumentTrackerPageState extends State<DocumentTrackerPage> {
                 );
               },
             ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          Navigator.pop(context);
-        },
-        icon: const Icon(Icons.add),
-        label: const Text('New Booking'),
-      ),
     );
   }
 
@@ -1427,48 +1758,6 @@ class _DocumentTrackerPageState extends State<DocumentTrackerPage> {
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Color _getStatusColor(String status) {
-    switch (status) {
-      case 'Pending':
-        return Colors.orange;
-      case 'Confirmed':
-        return Colors.blue;
-      case 'Completed':
-        return Colors.green;
-      case 'Cancelled':
-        return Colors.red;
-      default:
-        return Colors.grey;
-    }
-  }
-
-  void _showStatusDialog(int bookingIndex) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Update Booking Status'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children:
-              ['Pending', 'Confirmed', 'Completed', 'Cancelled'].map((status) {
-            return ListTile(
-              title: Text(status),
-              leading: Icon(
-                Icons.circle,
-                color: _getStatusColor(status),
-                size: 16,
-              ),
-              onTap: () {
-                _updateBookingStatus(bookingIndex, status);
-                Navigator.pop(context);
-              },
-            );
-          }).toList(),
-        ),
       ),
     );
   }
